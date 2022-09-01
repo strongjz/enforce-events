@@ -32,13 +32,24 @@ type envConfig struct {
 	Port         int    `envconfig:"PORT" default:"8080" required:"true"`
 	SlackWebhook string `envconfig:"SLACK_WEBHOOK" required:"true"`
 	NotifyLevel  string `envconfig:"NOTIFY_LEVEL" required:"true"`
+	Debug        bool   `envconfig:"DEBUG" default:"false" required:"false"`
 }
 
 func main() {
+	log.Printf("Starting Slack Webhook")
 	var env envConfig
 	if err := envconfig.Process("", &env); err != nil {
 		log.Fatalf("failed to process env var: %s", err)
 	}
+
+	if env.Debug {
+		log.Printf("Console URL: %v", env.Console)
+		log.Printf("Group veiwing events: %v", env.Group)
+		log.Printf("Sending events %v", env.SlackWebhook)
+		log.Printf("Issuer: %v", env.Issuer)
+		log.Printf("Notify Level: %v", env.NotifyLevel)
+	}
+
 	c, err := cloudevents.NewClientHTTP(cloudevents.WithPort(env.Port),
 		// We need to infuse the request onto context, so we can
 		// authenticate requests.
@@ -46,10 +57,16 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to create client, %v", err)
 	}
+
 	ctx := context.Background()
 
 	// Construct a verifier that ensures tokens are issued by the Chainguard
 	// issuer we expect and are intended for a customer webhook.
+
+	if env.Debug {
+		log.Printf("Getting OIDC Provider")
+	}
+
 	provider, err := oidc.NewProvider(ctx, env.Issuer)
 	if err != nil {
 		log.Fatalf("failed to create provider: %v", err)
